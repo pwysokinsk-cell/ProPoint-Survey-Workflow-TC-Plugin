@@ -1,0 +1,8 @@
+{
+  "title": "Survey Workflow Tracker",
+  "icon": "https://example.com/trimble-workflow-icon.png",
+  "url": "https://example.com/survey-workflow-tracker/index.html",
+  "description": "Trimble Connect surveying workflow tracker with status history and operator notes.",
+  "configCommand": "SURVEY_CONFIG",
+  "enabled": false
+}

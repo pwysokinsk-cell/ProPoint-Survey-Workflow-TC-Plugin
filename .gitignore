@@ -1,0 +1,7 @@
+node_modules
+.dist
+coverage
+.vscode/settings.json
+.vscode/*.code-workspace
+dist
+.DS_Store
