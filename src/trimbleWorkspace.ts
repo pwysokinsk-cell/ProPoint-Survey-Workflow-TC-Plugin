@@ -77,6 +77,23 @@ function getPropertyValue(properties: unknown, keys: string[]): string | undefin
   return undefined;
 }
 
+function getNestedPropertyValue(value: unknown, keys: string[]): string | undefined {
+  if (Array.isArray(value)) {
+    return getPropertyValue(value, keys);
+  }
+
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  return getPropertyValue(record.properties, keys)
+    ?? getPropertyValue(record.propertyValues, keys)
+    ?? getPropertyValue(record.attributes, keys)
+    ?? getPropertyValue(record.items, keys)
+    ?? getNestedPropertyValue(record.categories, keys);
+}
+
 function getModelValue(value: unknown, keys: string[]): string | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
@@ -116,15 +133,26 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
 
   let modelObject: unknown = selected;
   if (api.viewer.getObjectProperties) {
-    const properties = await api.viewer.getObjectProperties([selected]);
+    let properties: any;
+    try {
+      properties = await api.viewer.getObjectProperties({ modelObjectIds: [selectionId] });
+    } catch {
+      properties = await api.viewer.getObjectProperties([selected]);
+    }
+
     modelObject = Array.isArray(properties)
       ? properties[0]
-      : properties?.modelObjects?.[0] ?? properties?.objects?.[0] ?? properties;
+      : properties?.modelObjects?.[0]
+        ?? properties?.objects?.[0]
+        ?? properties?.modelObjectProperties?.[0]
+        ?? properties;
   }
 
-  const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id', 'objectRuntimeId']) ?? selectionId;
+  const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id', 'objectRuntimeId', 'modelObjectId'])
+    ?? getNestedPropertyValue(modelObject, ['guid', 'object guid', 'unique id', 'id'])
+    ?? selectionId;
   const name = getModelValue(modelObject, ['name', 'objectName', 'displayName', 'elementName', 'Name'])
-    ?? getPropertyValue((modelObject as Record<string, unknown>)?.properties, ['name', 'object name', 'element name', 'Name'])
+    ?? getNestedPropertyValue(modelObject, ['name', 'object name', 'element name', 'Name'])
     ?? `Model element ${guid.slice(0, 8)}`;
 
   return { guid, name };
