@@ -91,6 +91,26 @@ export const initialElements: SurveyElement[] = [
   },
 ];
 
+export function createElementDraft(
+  name: string,
+  guid: string,
+  currentStatus: StatusKey,
+  assignedOperatorId: string,
+): SurveyElement {
+  const finalName = name.trim() || 'New survey element';
+  const finalGuid = guid.trim() || `elem-${crypto.randomUUID().slice(0, 8)}`;
+
+  return {
+    id: `elem-${crypto.randomUUID()}`,
+    name: finalName,
+    guid: finalGuid,
+    currentStatus,
+    assignedOperatorId,
+    note: 'New element added to workflow.',
+    history: [],
+  };
+}
+
 export function getStatusMeta(status: StatusKey) {
   return statusCatalog.find((entry) => entry.key === status) ?? statusCatalog[0];
 }

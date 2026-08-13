@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
+  createElementDraft,
   getNextStatuses,
   getStatusMeta,
   initialElements,
   initialOperators,
+  statusCatalog,
   type HistoryEntry,
   type Operator,
   type StatusKey,
@@ -15,6 +17,7 @@ const storageKey = 'survey-workflow-tracker-state';
 
 interface AppState {
   elements: SurveyElement[];
+  operators: Operator[];
 }
 
 const defaultWorkspaceBridge: WorkspaceBridge = {
@@ -32,21 +35,25 @@ function loadState(): AppState {
   if (!saved) {
     return {
       elements: initialElements,
+      operators: initialOperators,
     };
   }
 
   try {
-    const parsed = JSON.parse(saved) as AppState;
-    if (Array.isArray(parsed.elements) && parsed.elements.length > 0) {
-      return parsed;
-    }
-  } catch {
-    // Fall through to the default state.
-  }
+    const parsed = JSON.parse(saved) as Partial<AppState>;
+    const elements = Array.isArray(parsed.elements) && parsed.elements.length > 0 ? parsed.elements : initialElements;
+    const operators = Array.isArray(parsed.operators) && parsed.operators.length > 0 ? parsed.operators : initialOperators;
 
-  return {
-    elements: initialElements,
-  };
+    return {
+      elements,
+      operators,
+    };
+  } catch {
+    return {
+      elements: initialElements,
+      operators: initialOperators,
+    };
+  }
 }
 
 function formatDateTime(value: string) {
@@ -60,10 +67,17 @@ function App() {
   const [state, setState] = useState<AppState>(loadState);
   const [workspace, setWorkspace] = useState<WorkspaceBridge>(defaultWorkspaceBridge);
   const [selectedElementId, setSelectedElementId] = useState(state.elements[0]?.id ?? '');
-  const [selectedOperatorId, setSelectedOperatorId] = useState(initialOperators[0]?.id ?? '');
-  const [nextStatus, setNextStatus] = useState<StatusKey | ''>('');
+  const [selectedOperatorId, setSelectedOperatorId] = useState(state.operators[0]?.id ?? '');
+  const [nextStatus, setNextStatus] = useState<StatusKey | ''>(state.elements[0]?.currentStatus ?? '');
   const [statusNote, setStatusNote] = useState('');
   const [quickNote, setQuickNote] = useState('');
+  const [operatorName, setOperatorName] = useState('');
+  const [operatorRole, setOperatorRole] = useState('Field crew');
+  const [operatorActive, setOperatorActive] = useState(true);
+  const [newElementName, setNewElementName] = useState('');
+  const [newElementGuid, setNewElementGuid] = useState('');
+  const [newElementStatus, setNewElementStatus] = useState<StatusKey>('DATA_PREPARED');
+  const [newElementOperatorId, setNewElementOperatorId] = useState(state.operators[0]?.id ?? '');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,20 +112,32 @@ function App() {
       return;
     }
 
-    const availableNextStatus = getNextStatuses(selectedElement.currentStatus)[0] ?? '';
-    setNextStatus(availableNextStatus);
     if (!selectedElement.assignedOperatorId) {
-      setSelectedOperatorId(initialOperators[0]?.id ?? '');
+      setSelectedOperatorId(state.operators[0]?.id ?? '');
     } else {
       setSelectedOperatorId(selectedElement.assignedOperatorId);
     }
+
+    setNextStatus(selectedElement.currentStatus);
     setStatusNote('');
     setQuickNote('');
-  }, [selectedElement?.id]);
+  }, [selectedElement?.id, state.operators]);
+
+  useEffect(() => {
+    if (!state.operators.some((operator) => operator.id === selectedOperatorId)) {
+      setSelectedOperatorId(state.operators[0]?.id ?? '');
+    }
+  }, [selectedOperatorId, state.operators]);
+
+  useEffect(() => {
+    if (!state.operators.some((operator) => operator.id === newElementOperatorId)) {
+      setNewElementOperatorId(state.operators[0]?.id ?? '');
+    }
+  }, [newElementOperatorId, state.operators]);
 
   const activeOperators = useMemo(
-    () => initialOperators.filter((operator: Operator) => operator.active),
-    [],
+    () => state.operators.filter((operator: Operator) => operator.active),
+    [state.operators],
   );
 
   const historyFeed = useMemo(() => {
@@ -124,10 +150,11 @@ function App() {
     );
   }, [selectedElement]);
 
-  const canAdvance = Boolean(nextStatus && selectedElement && getNextStatuses(selectedElement.currentStatus).includes(nextStatus));
+  const canAdvance = Boolean(nextStatus && selectedElement);
 
   function updateElement(elementId: string, updater: (element: SurveyElement) => SurveyElement) {
     setState((current) => ({
+      ...current,
       elements: current.elements.map((element) => (element.id === elementId ? updater(element) : element)),
     }));
   }
@@ -135,10 +162,6 @@ function App() {
   function handleStatusSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedElement || !nextStatus) {
-      return;
-    }
-
-    if (!getNextStatuses(selectedElement.currentStatus).includes(nextStatus)) {
       return;
     }
 
@@ -214,11 +237,58 @@ function App() {
     setQuickNote('');
   }
 
+  function handleAddOperator(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = operatorName.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    const entry: Operator = {
+      id: `op-${crypto.randomUUID()}`,
+      name: trimmedName,
+      role: operatorRole.trim() || 'Field crew',
+      active: operatorActive,
+    };
+
+    setState((current) => ({
+      ...current,
+      operators: [...current.operators, entry],
+    }));
+    setSelectedOperatorId(entry.id);
+    setOperatorName('');
+    setOperatorRole('Field crew');
+    setOperatorActive(true);
+  }
+
+  function handleAddElement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = newElementName.trim();
+    const guid = newElementGuid.trim();
+    const operator = state.operators.find((entry) => entry.id === newElementOperatorId) ?? state.operators[0];
+
+    if (!name) {
+      return;
+    }
+
+    const element = createElementDraft(name, guid, newElementStatus, operator?.id ?? '');
+
+    setState((current) => ({
+      ...current,
+      elements: [...current.elements, element],
+    }));
+    setSelectedElementId(element.id);
+    setNewElementName('');
+    setNewElementGuid('');
+    setNewElementStatus('DATA_PREPARED');
+    setNewElementOperatorId(state.operators[0]?.id ?? '');
+  }
+
   if (!selectedElement) {
     return <div className="shell empty-shell">No elements are available yet.</div>;
   }
 
-  const currentOperator = initialOperators.find((operator) => operator.id === selectedElement.assignedOperatorId);
+  const currentOperator = state.operators.find((operator) => operator.id === selectedElement.assignedOperatorId);
   const currentStatusMeta = getStatusMeta(selectedElement.currentStatus);
   const nextStatuses = getNextStatuses(selectedElement.currentStatus);
 
@@ -253,11 +323,54 @@ function App() {
             <span className="count-pill">{state.elements.length} tracked</span>
           </div>
 
+          <form className="action-card compact-form" onSubmit={handleAddElement}>
+            <div className="action-header">
+              <div>
+                <p className="panel-kicker">Add</p>
+                <h3>New element</h3>
+              </div>
+            </div>
+
+            <label>
+              Name
+              <input value={newElementName} onChange={(event) => setNewElementName(event.target.value)} placeholder="e.g. Panel P-07" />
+            </label>
+
+            <label>
+              GUID
+              <input value={newElementGuid} onChange={(event) => setNewElementGuid(event.target.value)} placeholder="Optional GUID" />
+            </label>
+
+            <label>
+              Initial status
+              <select value={newElementStatus} onChange={(event) => setNewElementStatus(event.target.value as StatusKey)}>
+                {statusCatalog.map((status) => (
+                  <option key={status.key} value={status.key}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Assigned operator
+              <select value={newElementOperatorId} onChange={(event) => setNewElementOperatorId(event.target.value)}>
+                {state.operators.map((operator) => (
+                  <option key={operator.id} value={operator.id}>
+                    {operator.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button type="submit">Add element</button>
+          </form>
+
           <div className="element-list">
             {state.elements.map((element) => {
               const statusMeta = getStatusMeta(element.currentStatus);
               const isActive = element.id === selectedElement.id;
-              const operator = initialOperators.find((entry) => entry.id === element.assignedOperatorId);
+              const operator = state.operators.find((entry) => entry.id === element.assignedOperatorId);
 
               return (
                 <button
@@ -313,9 +426,9 @@ function App() {
               <div className="action-header">
                 <div>
                   <p className="panel-kicker">Status change</p>
-                  <h3>Advance workflow</h3>
+                  <h3>Workflow update</h3>
                 </div>
-                <span className="count-pill">{nextStatuses.length === 0 ? 'Closed' : `${nextStatuses.length} option(s)`}</span>
+                <span className="count-pill">{nextStatuses.length === 0 ? 'Flexible' : `${nextStatuses.length} suggested`}</span>
               </div>
 
               <label>
@@ -330,20 +443,13 @@ function App() {
               </label>
 
               <label>
-                Next status
+                New status
                 <select value={nextStatus} onChange={(event) => setNextStatus(event.target.value as StatusKey)}>
-                  {nextStatuses.length === 0 ? (
-                    <option value="">No further transitions</option>
-                  ) : (
-                    nextStatuses.map((status) => {
-                      const meta = getStatusMeta(status);
-                      return (
-                        <option key={status} value={status}>
-                          {meta.label}
-                        </option>
-                      );
-                    })
-                  )}
+                  {statusCatalog.map((status) => (
+                    <option key={status.key} value={status.key}>
+                      {status.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -397,6 +503,32 @@ function App() {
               </button>
             </form>
           </div>
+
+          <form className="action-card compact-form" onSubmit={handleAddOperator}>
+            <div className="action-header">
+              <div>
+                <p className="panel-kicker">People</p>
+                <h3>New operator</h3>
+              </div>
+            </div>
+
+            <label>
+              Name
+              <input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} placeholder="e.g. Jane Doe" />
+            </label>
+
+            <label>
+              Role
+              <input value={operatorRole} onChange={(event) => setOperatorRole(event.target.value)} placeholder="e.g. Surveyor" />
+            </label>
+
+            <label className="toggle-row">
+              <span>Active</span>
+              <input type="checkbox" checked={operatorActive} onChange={(event) => setOperatorActive(event.target.checked)} />
+            </label>
+
+            <button type="submit">Add operator</button>
+          </form>
 
           <section className="timeline-card">
             <div className="action-header">
