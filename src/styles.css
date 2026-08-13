@@ -102,6 +102,26 @@ button {
   color: var(--blue);
 }
 
+.host-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 24, 40, 0.14);
+  font-weight: 700;
+}
+
+.host-pill.project {
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--amber);
+}
+
+.host-pill.viewer {
+  background: rgba(21, 128, 61, 0.12);
+  color: var(--green);
+}
+
 .eyebrow,
 .panel-kicker {
   margin: 0;

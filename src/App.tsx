@@ -540,6 +540,7 @@ function App() {
           <h1>Track element status, operator ownership, and history in one place.</h1>
           <div className="workspace-banner">
             <span className={`connection-pill ${workspace.mode}`}>{workspace.mode === 'connected' ? 'Connected to Trimble Connect' : 'Local development mode'}</span>
+            <span className="host-pill project">Project window</span>
             <span>{workspace.projectName}</span>
             <span>{workspace.language}</span>
             <span>{workspace.accessTokenState}</span>
