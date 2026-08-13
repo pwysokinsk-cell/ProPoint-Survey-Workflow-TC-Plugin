@@ -359,6 +359,16 @@ button[type='submit']:disabled {
   color: #b42318;
 }
 
+.model-attribute-picker {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(21, 128, 61, 0.2);
+  border-radius: 16px;
+  background: rgba(21, 128, 61, 0.06);
+}
+
 .timeline {
   display: grid;
   gap: 12px;

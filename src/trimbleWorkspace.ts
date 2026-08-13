@@ -7,9 +7,15 @@ export interface WorkspaceBridge {
   api: any;
 }
 
+export interface ModelAttribute {
+  name: string;
+  value: string;
+}
+
 export interface ModelElementReference {
   guid: string;
   name: string;
+  attributes: ModelAttribute[];
 }
 
 interface ExtensionMenuItem {
@@ -94,6 +100,36 @@ function getNestedPropertyValue(value: unknown, keys: string[]): string | undefi
     ?? getNestedPropertyValue(record.categories, keys);
 }
 
+function collectModelAttributes(value: unknown, attributes: ModelAttribute[] = [], visited = new Set<unknown>()) {
+  if (!value || typeof value !== 'object' || visited.has(value)) {
+    return attributes;
+  }
+
+  visited.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectModelAttributes(item, attributes, visited));
+    return attributes;
+  }
+
+  const record = value as Record<string, unknown>;
+  const name = getTextValue(record.name)
+    ?? getTextValue(record.displayName)
+    ?? getTextValue(record.propertyName)
+    ?? getTextValue(record.key);
+  const scalarValue = getTextValue(record.value)
+    ?? getTextValue(record.displayValue)
+    ?? getTextValue(record.propertyValue);
+
+  if (name && scalarValue && !['name', 'value', 'key', 'displayname', 'propertyname', 'propertyvalue'].includes(name.toLowerCase())) {
+    if (!attributes.some((attribute) => attribute.name === name && attribute.value === scalarValue)) {
+      attributes.push({ name, value: scalarValue });
+    }
+  }
+
+  Object.values(record).forEach((child) => collectModelAttributes(child, attributes, visited));
+  return attributes;
+}
+
 function getModelValue(value: unknown, keys: string[]): string | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
@@ -148,14 +184,17 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
       ?? properties;
   }
 
+  const attributes = collectModelAttributes(modelObject);
   const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id', 'objectRuntimeId', 'modelObjectId'])
     ?? getNestedPropertyValue(modelObject, ['guid', 'object guid', 'unique id', 'id'])
+    ?? attributes.find((attribute) => attribute.name.toLowerCase() === 'guid (ms)')?.value
     ?? selectionId;
   const name = getModelValue(modelObject, ['name', 'objectName', 'displayName', 'elementName', 'Name'])
     ?? getNestedPropertyValue(modelObject, ['name', 'object name', 'element name', 'Name'])
+    ?? attributes.find((attribute) => attribute.name === '1-Konstruksjonsdel')?.value
     ?? `Model element ${guid.slice(0, 8)}`;
 
-  return { guid, name };
+  return { guid, name, attributes };
 }
 
 export async function connectTrimbleWorkspace(onCommand: (command: string) => void): Promise<WorkspaceBridge> {

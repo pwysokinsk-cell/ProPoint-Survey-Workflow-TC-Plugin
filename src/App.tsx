@@ -11,7 +11,7 @@ import {
   type StatusKey,
   type SurveyElement,
 } from './types';
-import { connectTrimbleWorkspace, getSelectedModelElement, type WorkspaceBridge } from './trimbleWorkspace';
+import { connectTrimbleWorkspace, getSelectedModelElement, type ModelAttribute, type WorkspaceBridge } from './trimbleWorkspace';
 
 const storageKey = 'survey-workflow-tracker-state';
 
@@ -94,6 +94,9 @@ function App() {
   const [adminManagerOpen, setAdminManagerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [modelSelectionState, setModelSelectionState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [modelAttributes, setModelAttributes] = useState<ModelAttribute[]>([]);
+  const [modelNameAttribute, setModelNameAttribute] = useState('');
+  const [modelGuidAttribute, setModelGuidAttribute] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -327,12 +330,34 @@ function App() {
         return;
       }
 
-      setNewElementName(modelElement.name);
-      setNewElementGuid(modelElement.guid);
+      setModelAttributes(modelElement.attributes);
+      const defaultNameAttribute = modelElement.attributes.find((attribute) => attribute.name === '1-Konstruksjonsdel')
+        ?? modelElement.attributes.find((attribute) => attribute.name.toLowerCase().includes('name'));
+      const defaultGuidAttribute = modelElement.attributes.find((attribute) => attribute.name.toLowerCase() === 'guid (ms)')
+        ?? modelElement.attributes.find((attribute) => attribute.name.toLowerCase().includes('guid'));
+      setModelNameAttribute(defaultNameAttribute?.name ?? '');
+      setModelGuidAttribute(defaultGuidAttribute?.name ?? '');
+      setNewElementName(defaultNameAttribute?.value ?? modelElement.name);
+      setNewElementGuid(defaultGuidAttribute?.value ?? modelElement.guid);
       setModelSelectionState('idle');
       workspace.api.extension?.setStatusMessage?.(`Selected ${modelElement.name}`);
     } catch {
       setModelSelectionState('error');
+    }
+  }
+
+  function handleModelAttributeChange(attributeType: 'name' | 'guid', attributeName: string) {
+    const attribute = modelAttributes.find((entry) => entry.name === attributeName);
+    if (!attribute) {
+      return;
+    }
+
+    if (attributeType === 'name') {
+      setModelNameAttribute(attributeName);
+      setNewElementName(attribute.value);
+    } else {
+      setModelGuidAttribute(attributeName);
+      setNewElementGuid(attribute.value);
     }
   }
 
@@ -487,6 +512,32 @@ function App() {
                   : 'Select an object in the Trimble model, then load its name and GUID.'
                 : 'Open the extension inside Trimble Connect to read the current model selection.'}
           </p>
+
+          {modelAttributes.length > 0 && <div className="model-attribute-picker">
+            <p className="panel-kicker">Selected model attributes</p>
+            <label>
+              Element name from
+              <select value={modelNameAttribute} onChange={(event) => handleModelAttributeChange('name', event.target.value)}>
+                <option value="">Keep current name</option>
+                {modelAttributes.map((attribute, index) => (
+                  <option key={`${attribute.name}-${index}`} value={attribute.name}>
+                    {attribute.name}: {attribute.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Element GUID from
+              <select value={modelGuidAttribute} onChange={(event) => handleModelAttributeChange('guid', event.target.value)}>
+                <option value="">Keep current GUID</option>
+                {modelAttributes.map((attribute, index) => (
+                  <option key={`${attribute.name}-${index}`} value={attribute.name}>
+                    {attribute.name}: {attribute.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>}
 
           {isAdmin && <form className="action-card compact-form" onSubmit={handleAddElement}>
             <div className="action-header">
