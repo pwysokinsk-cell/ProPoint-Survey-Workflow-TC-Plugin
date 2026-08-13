@@ -78,6 +78,18 @@ function App() {
   const [newElementGuid, setNewElementGuid] = useState('');
   const [newElementStatus, setNewElementStatus] = useState<StatusKey>('DATA_PREPARED');
   const [newElementOperatorId, setNewElementOperatorId] = useState(state.operators[0]?.id ?? '');
+  const [elementDraft, setElementDraft] = useState({
+    name: '',
+    guid: '',
+    currentStatus: 'DATA_PREPARED' as StatusKey,
+    assignedOperatorId: state.operators[0]?.id ?? '',
+    note: '',
+  });
+  const [operatorDraft, setOperatorDraft] = useState({
+    name: '',
+    role: '',
+    active: true,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +133,19 @@ function App() {
     setNextStatus(selectedElement.currentStatus);
     setStatusNote('');
     setQuickNote('');
+    setElementDraft({
+      name: selectedElement.name,
+      guid: selectedElement.guid,
+      currentStatus: selectedElement.currentStatus,
+      assignedOperatorId: selectedElement.assignedOperatorId ?? state.operators[0]?.id ?? '',
+      note: selectedElement.note,
+    });
+    const relatedOperator = state.operators.find((operator) => operator.id === selectedElement.assignedOperatorId) ?? state.operators[0];
+    setOperatorDraft({
+      name: relatedOperator?.name ?? '',
+      role: relatedOperator?.role ?? '',
+      active: relatedOperator?.active ?? true,
+    });
   }, [selectedElement?.id, state.operators]);
 
   useEffect(() => {
@@ -284,6 +309,95 @@ function App() {
     setNewElementOperatorId(state.operators[0]?.id ?? '');
   }
 
+  function handleUpdateSelectedElement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedElement) {
+      return;
+    }
+
+    const updatedName = elementDraft.name.trim();
+    if (!updatedName) {
+      return;
+    }
+
+    updateElement(selectedElement.id, (element) => ({
+      ...element,
+      name: updatedName,
+      guid: elementDraft.guid.trim() || element.guid,
+      currentStatus: elementDraft.currentStatus,
+      assignedOperatorId: elementDraft.assignedOperatorId || element.assignedOperatorId,
+      note: elementDraft.note.trim() || element.note,
+    }));
+  }
+
+  function handleUpdateSelectedOperator(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedElement || !currentOperator) {
+      return;
+    }
+
+    const updatedName = operatorDraft.name.trim();
+    if (!updatedName) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      operators: current.operators.map((operator) =>
+        operator.id === currentOperator.id
+          ? {
+              ...operator,
+              name: updatedName,
+              role: operatorDraft.role.trim() || operator.role,
+              active: operatorDraft.active,
+            }
+          : operator,
+      ),
+    }));
+  }
+
+  function handleDeleteElement() {
+    if (!selectedElement) {
+      return;
+    }
+
+    setState((current) => {
+      const remaining = current.elements.filter((element) => element.id !== selectedElement.id);
+      const nextSelection = remaining[0]?.id ?? '';
+      setSelectedElementId(nextSelection);
+      return {
+        ...current,
+        elements: remaining,
+      };
+    });
+  }
+
+  function handleDeleteOperator() {
+    if (!currentOperator) {
+      return;
+    }
+
+    setState((current) => {
+      const remainingOperators = current.operators.filter((operator) => operator.id !== currentOperator.id);
+      const fallbackOperator = remainingOperators[0];
+
+      const nextElements = current.elements.map((element) =>
+        element.assignedOperatorId === currentOperator.id
+          ? { ...element, assignedOperatorId: fallbackOperator?.id ?? '' }
+          : element,
+      );
+
+      const nextSelection = fallbackOperator?.id ?? '';
+      setSelectedOperatorId(nextSelection);
+
+      return {
+        ...current,
+        operators: remainingOperators,
+        elements: nextElements,
+      };
+    });
+  }
+
   if (!selectedElement) {
     return <div className="shell empty-shell">No elements are available yet.</div>;
   }
@@ -421,6 +535,55 @@ function App() {
             </article>
           </div>
 
+          <form className="action-card compact-form" onSubmit={handleUpdateSelectedElement}>
+            <div className="action-header">
+              <div>
+                <p className="panel-kicker">Edit</p>
+                <h3>Selected element</h3>
+              </div>
+              <button type="button" className="danger-button" onClick={handleDeleteElement}>Delete element</button>
+            </div>
+
+            <label>
+              Name
+              <input value={elementDraft.name} onChange={(event) => setElementDraft((current) => ({ ...current, name: event.target.value }))} />
+            </label>
+
+            <label>
+              GUID
+              <input value={elementDraft.guid} onChange={(event) => setElementDraft((current) => ({ ...current, guid: event.target.value }))} />
+            </label>
+
+            <label>
+              Status
+              <select value={elementDraft.currentStatus} onChange={(event) => setElementDraft((current) => ({ ...current, currentStatus: event.target.value as StatusKey }))}>
+                {statusCatalog.map((status) => (
+                  <option key={status.key} value={status.key}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Operator
+              <select value={elementDraft.assignedOperatorId} onChange={(event) => setElementDraft((current) => ({ ...current, assignedOperatorId: event.target.value }))}>
+                {state.operators.map((operator) => (
+                  <option key={operator.id} value={operator.id}>
+                    {operator.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Note
+              <textarea value={elementDraft.note} onChange={(event) => setElementDraft((current) => ({ ...current, note: event.target.value }))} rows={3} />
+            </label>
+
+            <button type="submit">Save element changes</button>
+          </form>
+
           <div className="actions-grid">
             <form className="action-card" onSubmit={handleStatusSubmit}>
               <div className="action-header">
@@ -503,6 +666,33 @@ function App() {
               </button>
             </form>
           </div>
+
+          <form className="action-card compact-form" onSubmit={handleUpdateSelectedOperator}>
+            <div className="action-header">
+              <div>
+                <p className="panel-kicker">People</p>
+                <h3>Selected operator</h3>
+              </div>
+              <button type="button" className="danger-button" onClick={handleDeleteOperator}>Delete operator</button>
+            </div>
+
+            <label>
+              Name
+              <input value={operatorDraft.name} onChange={(event) => setOperatorDraft((current) => ({ ...current, name: event.target.value }))} />
+            </label>
+
+            <label>
+              Role
+              <input value={operatorDraft.role} onChange={(event) => setOperatorDraft((current) => ({ ...current, role: event.target.value }))} />
+            </label>
+
+            <label className="toggle-row">
+              <span>Active</span>
+              <input type="checkbox" checked={operatorDraft.active} onChange={(event) => setOperatorDraft((current) => ({ ...current, active: event.target.checked }))} />
+            </label>
+
+            <button type="submit">Save operator changes</button>
+          </form>
 
           <form className="action-card compact-form" onSubmit={handleAddOperator}>
             <div className="action-header">
