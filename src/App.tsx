@@ -94,6 +94,7 @@ function App() {
   const [adminManagerOpen, setAdminManagerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [modelSelectionState, setModelSelectionState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [modelSelectionError, setModelSelectionError] = useState('');
   const [modelAttributes, setModelAttributes] = useState<ModelAttribute[]>([]);
   const [modelNameAttribute, setModelNameAttribute] = useState('');
   const [modelGuidAttribute, setModelGuidAttribute] = useState('');
@@ -319,14 +320,17 @@ function App() {
   async function handleUseSelectedModelElement() {
     if (workspace.mode !== 'connected' || !workspace.api) {
       setModelSelectionState('error');
+      setModelSelectionError('Workspace API is unavailable. Open the plugin inside Trimble Connect.');
       return;
     }
 
     setModelSelectionState('loading');
+    setModelSelectionError('');
     try {
       const modelElement = await getSelectedModelElement(workspace.api);
       if (!modelElement) {
         setModelSelectionState('error');
+        setModelSelectionError('No selected object was returned from Trimble viewer.');
         return;
       }
 
@@ -340,9 +344,11 @@ function App() {
       setNewElementName(defaultNameAttribute?.value ?? modelElement.name);
       setNewElementGuid(defaultGuidAttribute?.value ?? modelElement.guid);
       setModelSelectionState('idle');
+      setModelSelectionError('');
       workspace.api.extension?.setStatusMessage?.(`Selected ${modelElement.name}`);
-    } catch {
+    } catch (error) {
       setModelSelectionState('error');
+      setModelSelectionError(error instanceof Error ? error.message : 'The selected object could not be read from Trimble viewer.');
     }
   }
 
@@ -508,7 +514,7 @@ function App() {
               ? 'Enable admin mode to create an element from the current model selection.'
               : workspace.mode === 'connected'
                 ? modelSelectionState === 'error'
-                  ? 'No model element was selected, or its properties could not be read.'
+                  ? modelSelectionError || 'No model element was selected, or its properties could not be read.'
                   : 'Select an object in the Trimble model, then load its name and GUID.'
                 : 'Open the extension inside Trimble Connect to read the current model selection.'}
           </p>

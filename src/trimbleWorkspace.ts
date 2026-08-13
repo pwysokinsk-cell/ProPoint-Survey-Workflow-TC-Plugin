@@ -58,6 +58,47 @@ function getTextValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
+function getScalarValue(value: unknown) {
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return String(value);
+  }
+
+  return getTextValue(value);
+}
+
+function getSelectionEnvelopeId(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return getScalarValue(value);
+  }
+
+  const record = value as Record<string, unknown>;
+  const directId = getScalarValue(record.id)
+    ?? getScalarValue(record.objectId)
+    ?? getScalarValue(record.objectRuntimeId)
+    ?? getScalarValue(record.guid)
+    ?? getScalarValue(record.uniqueId)
+    ?? getScalarValue(record.modelObjectId);
+  if (directId) {
+    return directId;
+  }
+
+  const arrayKeys = ['modelObjectIds', 'objectRuntimeIds', 'objectIds', 'ids'] as const;
+  for (const arrayKey of arrayKeys) {
+    const candidate = record[arrayKey];
+    if (!Array.isArray(candidate) || candidate.length === 0) {
+      continue;
+    }
+
+    const first = candidate[0];
+    const firstId = getSelectionEnvelopeId(first);
+    if (firstId) {
+      return firstId;
+    }
+  }
+
+  return undefined;
+}
+
 function getPropertyValue(properties: unknown, keys: string[]): string | undefined {
   if (!Array.isArray(properties)) {
     return undefined;
@@ -148,7 +189,7 @@ function getModelValue(value: unknown, keys: string[]): string | undefined {
 
 export async function getSelectedModelElement(api: any): Promise<ModelElementReference | null> {
   if (!api?.viewer?.getSelection) {
-    return null;
+    throw new Error('Viewer selection API is not available for this extension context.');
   }
 
   const selection = await api.viewer.getSelection();
@@ -157,23 +198,41 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
     : selection?.modelObjectIds ?? selection?.objects ?? selection?.selection ?? [selection];
   const selected = selectionItems[0];
   if (selected === undefined || selected === null) {
-    return null;
+    throw new Error('No active model selection found in Trimble viewer.');
   }
 
-  const selectionId = typeof selected === 'object'
-    ? getModelValue(selected, ['id', 'objectId', 'objectRuntimeId', 'guid', 'uniqueId'])
-    : String(selected);
+  const selectionId = getSelectionEnvelopeId(selected) ?? (typeof selected === 'object'
+    ? getModelValue(selected, ['id', 'objectId', 'objectRuntimeId', 'guid', 'uniqueId', 'modelObjectId'])
+    : String(selected));
   if (!selectionId) {
-    return null;
+    throw new Error('Selected object ID could not be resolved from Trimble selection payload.');
   }
 
   let modelObject: unknown = selected;
-  if (api.viewer.getObjectProperties) {
+  const objectPropertiesProvider = api.viewer.getObjectProperties;
+  if (objectPropertiesProvider) {
     let properties: any;
-    try {
-      properties = await api.viewer.getObjectProperties({ modelObjectIds: [selectionId] });
-    } catch {
-      properties = await api.viewer.getObjectProperties([selected]);
+    const requestCandidates = [
+      selected,
+      { modelObjectIds: [selectionId] },
+      { objectRuntimeIds: [selectionId] },
+      [selected],
+      [selectionId],
+    ];
+
+    for (const requestCandidate of requestCandidates) {
+      try {
+        properties = await objectPropertiesProvider(requestCandidate);
+        if (properties) {
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (!properties) {
+      throw new Error('Trimble returned no object properties for the current selection.');
     }
 
     modelObject = Array.isArray(properties)
