@@ -63,9 +63,14 @@ function getPropertyValue(properties: unknown, keys: string[]): string | undefin
     }
 
     const record = property as Record<string, unknown>;
-    const propertyName = getTextValue(record.name) ?? getTextValue(record.key) ?? getTextValue(record.displayName);
+    const propertyName = getTextValue(record.name)
+      ?? getTextValue(record.key)
+      ?? getTextValue(record.displayName)
+      ?? getTextValue(record.propertyName);
     if (propertyName && keys.some((key) => propertyName.toLowerCase() === key.toLowerCase())) {
-      return getTextValue(record.value) ?? getTextValue(record.displayValue);
+      return getTextValue(record.value)
+        ?? getTextValue(record.displayValue)
+        ?? getTextValue(record.propertyValue);
     }
   }
 
@@ -94,13 +99,16 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
   }
 
   const selection = await api.viewer.getSelection();
-  const selected = Array.isArray(selection) ? selection[0] : selection;
+  const selectionItems = Array.isArray(selection)
+    ? selection
+    : selection?.modelObjectIds ?? selection?.objects ?? selection?.selection ?? [selection];
+  const selected = selectionItems[0];
   if (selected === undefined || selected === null) {
     return null;
   }
 
   const selectionId = typeof selected === 'object'
-    ? getModelValue(selected, ['id', 'objectId', 'guid', 'uniqueId'])
+    ? getModelValue(selected, ['id', 'objectId', 'objectRuntimeId', 'guid', 'uniqueId'])
     : String(selected);
   if (!selectionId) {
     return null;
@@ -109,10 +117,12 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
   let modelObject: unknown = selected;
   if (api.viewer.getObjectProperties) {
     const properties = await api.viewer.getObjectProperties([selected]);
-    modelObject = Array.isArray(properties) ? properties[0] : properties;
+    modelObject = Array.isArray(properties)
+      ? properties[0]
+      : properties?.modelObjects?.[0] ?? properties?.objects?.[0] ?? properties;
   }
 
-  const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id']) ?? selectionId;
+  const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id', 'objectRuntimeId']) ?? selectionId;
   const name = getModelValue(modelObject, ['name', 'objectName', 'displayName', 'elementName', 'Name'])
     ?? getPropertyValue((modelObject as Record<string, unknown>)?.properties, ['name', 'object name', 'element name', 'Name'])
     ?? `Model element ${guid.slice(0, 8)}`;
