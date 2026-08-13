@@ -334,6 +334,31 @@ button[type='submit']:disabled {
   cursor: not-allowed;
 }
 
+.model-picker-button {
+  border: 1px solid rgba(21, 128, 61, 0.28);
+  border-radius: 14px;
+  padding: 11px 14px;
+  background: rgba(21, 128, 61, 0.08);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.model-picker-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.field-help {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.field-error {
+  color: #b42318;
+}
+
 .timeline {
   display: grid;
   gap: 12px;

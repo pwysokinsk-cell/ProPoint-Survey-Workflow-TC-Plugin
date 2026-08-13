@@ -11,7 +11,7 @@ import {
   type StatusKey,
   type SurveyElement,
 } from './types';
-import { connectTrimbleWorkspace, type WorkspaceBridge } from './trimbleWorkspace';
+import { connectTrimbleWorkspace, getSelectedModelElement, type WorkspaceBridge } from './trimbleWorkspace';
 
 const storageKey = 'survey-workflow-tracker-state';
 
@@ -93,6 +93,7 @@ function App() {
   const [operatorManagerOpen, setOperatorManagerOpen] = useState(false);
   const [adminManagerOpen, setAdminManagerOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [modelSelectionState, setModelSelectionState] = useState<'idle' | 'loading' | 'error'>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -312,6 +313,29 @@ function App() {
     setNewElementOperatorId(state.operators[0]?.id ?? '');
   }
 
+  async function handleUseSelectedModelElement() {
+    if (workspace.mode !== 'connected' || !workspace.api) {
+      setModelSelectionState('error');
+      return;
+    }
+
+    setModelSelectionState('loading');
+    try {
+      const modelElement = await getSelectedModelElement(workspace.api);
+      if (!modelElement) {
+        setModelSelectionState('error');
+        return;
+      }
+
+      setNewElementName(modelElement.name);
+      setNewElementGuid(modelElement.guid);
+      setModelSelectionState('idle');
+      workspace.api.extension?.setStatusMessage?.(`Selected ${modelElement.name}`);
+    } catch {
+      setModelSelectionState('error');
+    }
+  }
+
   function handleUpdateSelectedElement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedElement) {
@@ -458,6 +482,17 @@ function App() {
                 <h3>New element</h3>
               </div>
             </div>
+
+            <button type="button" className="model-picker-button" onClick={handleUseSelectedModelElement} disabled={modelSelectionState === 'loading'}>
+              {modelSelectionState === 'loading' ? 'Reading model selection...' : 'Use selected model element'}
+            </button>
+            <p className={`field-help ${modelSelectionState === 'error' ? 'field-error' : ''}`}>
+              {workspace.mode === 'connected'
+                ? modelSelectionState === 'error'
+                  ? 'No model element was selected, or its properties could not be read.'
+                  : 'Select an object in the Trimble model, then load its name and GUID here.'
+                : 'Available when the extension is opened inside Trimble Connect. Manual entry remains available below.'}
+            </p>
 
             <label>
               Name

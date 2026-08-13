@@ -7,6 +7,11 @@ export interface WorkspaceBridge {
   api: any;
 }
 
+export interface ModelElementReference {
+  guid: string;
+  name: string;
+}
+
 interface ExtensionMenuItem {
   title: string;
   icon: string;
@@ -45,6 +50,74 @@ function createLocalBridge(): WorkspaceBridge {
 
 function getTextValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function getPropertyValue(properties: unknown, keys: string[]): string | undefined {
+  if (!Array.isArray(properties)) {
+    return undefined;
+  }
+
+  for (const property of properties) {
+    if (!property || typeof property !== 'object') {
+      continue;
+    }
+
+    const record = property as Record<string, unknown>;
+    const propertyName = getTextValue(record.name) ?? getTextValue(record.key) ?? getTextValue(record.displayName);
+    if (propertyName && keys.some((key) => propertyName.toLowerCase() === key.toLowerCase())) {
+      return getTextValue(record.value) ?? getTextValue(record.displayValue);
+    }
+  }
+
+  return undefined;
+}
+
+function getModelValue(value: unknown, keys: string[]): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const directValue = getTextValue(record[key]);
+    if (directValue) {
+      return directValue;
+    }
+  }
+
+  return getPropertyValue(record.properties, keys);
+}
+
+export async function getSelectedModelElement(api: any): Promise<ModelElementReference | null> {
+  if (!api?.viewer?.getSelection) {
+    return null;
+  }
+
+  const selection = await api.viewer.getSelection();
+  const selected = Array.isArray(selection) ? selection[0] : selection;
+  if (selected === undefined || selected === null) {
+    return null;
+  }
+
+  const selectionId = typeof selected === 'object'
+    ? getModelValue(selected, ['id', 'objectId', 'guid', 'uniqueId'])
+    : String(selected);
+  if (!selectionId) {
+    return null;
+  }
+
+  let modelObject: unknown = selected;
+  if (api.viewer.getObjectProperties) {
+    const properties = await api.viewer.getObjectProperties([selected]);
+    modelObject = Array.isArray(properties) ? properties[0] : properties;
+  }
+
+  const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id']) ?? selectionId;
+  const name = getModelValue(modelObject, ['name', 'objectName', 'displayName', 'elementName', 'Name'])
+    ?? getPropertyValue((modelObject as Record<string, unknown>)?.properties, ['name', 'object name', 'element name', 'Name'])
+    ?? `Model element ${guid.slice(0, 8)}`;
+
+  return { guid, name };
 }
 
 export async function connectTrimbleWorkspace(onCommand: (command: string) => void): Promise<WorkspaceBridge> {
