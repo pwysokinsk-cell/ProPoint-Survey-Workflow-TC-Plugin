@@ -212,17 +212,30 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
   const objectPropertiesProvider = api.viewer.getObjectProperties;
   if (objectPropertiesProvider) {
     let properties: any;
-    const requestCandidates = [
-      selected,
-      { modelObjectIds: [selectionId] },
-      { objectRuntimeIds: [selectionId] },
-      [selected],
-      [selectionId],
-    ];
+    const selectionRecord = selected && typeof selected === 'object'
+      ? selected as Record<string, unknown>
+      : undefined;
+    const modelId = getTextValue(selectionRecord?.modelId);
+    const objectRuntimeIds = Array.isArray(selectionRecord?.objectRuntimeIds)
+      ? selectionRecord.objectRuntimeIds.filter((value): value is number => typeof value === 'number')
+      : [];
+    const requestCandidates: Array<() => Promise<unknown>> = [];
+
+    if (modelId && objectRuntimeIds.length > 0) {
+      requestCandidates.push(() => objectPropertiesProvider(modelId, objectRuntimeIds));
+    }
+
+    requestCandidates.push(
+      () => objectPropertiesProvider(selected),
+      () => objectPropertiesProvider({ modelObjectIds: [selectionId] }),
+      () => objectPropertiesProvider({ objectRuntimeIds: [selectionId] }),
+      () => objectPropertiesProvider([selected]),
+      () => objectPropertiesProvider([selectionId]),
+    );
 
     for (const requestCandidate of requestCandidates) {
       try {
-        properties = await objectPropertiesProvider(requestCandidate);
+        properties = await requestCandidate();
         if (properties) {
           break;
         }
