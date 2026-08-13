@@ -475,6 +475,19 @@ function App() {
             {isAdmin ? 'Admin mode enabled: manage elements' : 'Admin controls: unlock element management'}
           </button>
 
+          <button type="button" className="model-picker-button" onClick={handleUseSelectedModelElement} disabled={!isAdmin || workspace.mode !== 'connected' || modelSelectionState === 'loading'}>
+            {modelSelectionState === 'loading' ? 'Reading model selection...' : 'Use selected model element'}
+          </button>
+          <p className={`field-help model-picker-help ${modelSelectionState === 'error' ? 'field-error' : ''}`}>
+            {!isAdmin
+              ? 'Enable admin mode to create an element from the current model selection.'
+              : workspace.mode === 'connected'
+                ? modelSelectionState === 'error'
+                  ? 'No model element was selected, or its properties could not be read.'
+                  : 'Select an object in the Trimble model, then load its name and GUID.'
+                : 'Open the extension inside Trimble Connect to read the current model selection.'}
+          </p>
+
           {isAdmin && <form className="action-card compact-form" onSubmit={handleAddElement}>
             <div className="action-header">
               <div>
@@ -482,17 +495,6 @@ function App() {
                 <h3>New element</h3>
               </div>
             </div>
-
-            <button type="button" className="model-picker-button" onClick={handleUseSelectedModelElement} disabled={modelSelectionState === 'loading'}>
-              {modelSelectionState === 'loading' ? 'Reading model selection...' : 'Use selected model element'}
-            </button>
-            <p className={`field-help ${modelSelectionState === 'error' ? 'field-error' : ''}`}>
-              {workspace.mode === 'connected'
-                ? modelSelectionState === 'error'
-                  ? 'No model element was selected, or its properties could not be read.'
-                  : 'Select an object in the Trimble model, then load its name and GUID here.'
-                : 'Available when the extension is opened inside Trimble Connect. Manual entry remains available below.'}
-            </p>
 
             <label>
               Name
