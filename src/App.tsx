@@ -90,6 +90,9 @@ function App() {
     role: '',
     active: true,
   });
+  const [operatorManagerOpen, setOperatorManagerOpen] = useState(false);
+  const [adminManagerOpen, setAdminManagerOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,7 +335,8 @@ function App() {
 
   function handleUpdateSelectedOperator(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedElement || !currentOperator) {
+    const selectedOperator = state.operators.find((operator) => operator.id === selectedOperatorId);
+    if (!selectedOperator) {
       return;
     }
 
@@ -344,13 +348,13 @@ function App() {
     setState((current) => ({
       ...current,
       operators: current.operators.map((operator) =>
-        operator.id === currentOperator.id
+        operator.id === selectedOperator.id
           ? {
-              ...operator,
-              name: updatedName,
-              role: operatorDraft.role.trim() || operator.role,
-              active: operatorDraft.active,
-            }
+            ...operator,
+            name: updatedName,
+            role: operatorDraft.role.trim() || operator.role,
+            active: operatorDraft.active,
+          }
           : operator,
       ),
     }));
@@ -372,17 +376,17 @@ function App() {
     });
   }
 
-  function handleDeleteOperator() {
-    if (!currentOperator) {
+  function handleDeleteOperator(operatorId = currentOperator?.id) {
+    if (!operatorId) {
       return;
     }
 
     setState((current) => {
-      const remainingOperators = current.operators.filter((operator) => operator.id !== currentOperator.id);
+      const remainingOperators = current.operators.filter((operator) => operator.id !== operatorId);
       const fallbackOperator = remainingOperators[0];
 
       const nextElements = current.elements.map((element) =>
-        element.assignedOperatorId === currentOperator.id
+        element.assignedOperatorId === operatorId
           ? { ...element, assignedOperatorId: fallbackOperator?.id ?? '' }
           : element,
       );
@@ -396,6 +400,12 @@ function App() {
         elements: nextElements,
       };
     });
+  }
+
+  function handleAdminModeChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsAdmin((current) => !current);
+    setAdminManagerOpen(false);
   }
 
   if (!selectedElement) {
@@ -437,7 +447,11 @@ function App() {
             <span className="count-pill">{state.elements.length} tracked</span>
           </div>
 
-          <form className="action-card compact-form" onSubmit={handleAddElement}>
+          <button type="button" className="management-button" onClick={() => setAdminManagerOpen(true)}>
+            {isAdmin ? 'Admin mode enabled' : 'Open admin controls'}
+          </button>
+
+          {isAdmin && <form className="action-card compact-form" onSubmit={handleAddElement}>
             <div className="action-header">
               <div>
                 <p className="panel-kicker">Add</p>
@@ -478,7 +492,7 @@ function App() {
             </label>
 
             <button type="submit">Add element</button>
-          </form>
+          </form>}
 
           <div className="element-list">
             {state.elements.map((element) => {
@@ -535,7 +549,7 @@ function App() {
             </article>
           </div>
 
-          <form className="action-card compact-form" onSubmit={handleUpdateSelectedElement}>
+          {isAdmin && <form className="action-card compact-form" onSubmit={handleUpdateSelectedElement}>
             <div className="action-header">
               <div>
                 <p className="panel-kicker">Edit</p>
@@ -582,7 +596,7 @@ function App() {
             </label>
 
             <button type="submit">Save element changes</button>
-          </form>
+          </form>}
 
           <div className="actions-grid">
             <form className="action-card" onSubmit={handleStatusSubmit}>
@@ -667,58 +681,9 @@ function App() {
             </form>
           </div>
 
-          <form className="action-card compact-form" onSubmit={handleUpdateSelectedOperator}>
-            <div className="action-header">
-              <div>
-                <p className="panel-kicker">People</p>
-                <h3>Selected operator</h3>
-              </div>
-              <button type="button" className="danger-button" onClick={handleDeleteOperator}>Delete operator</button>
-            </div>
-
-            <label>
-              Name
-              <input value={operatorDraft.name} onChange={(event) => setOperatorDraft((current) => ({ ...current, name: event.target.value }))} />
-            </label>
-
-            <label>
-              Role
-              <input value={operatorDraft.role} onChange={(event) => setOperatorDraft((current) => ({ ...current, role: event.target.value }))} />
-            </label>
-
-            <label className="toggle-row">
-              <span>Active</span>
-              <input type="checkbox" checked={operatorDraft.active} onChange={(event) => setOperatorDraft((current) => ({ ...current, active: event.target.checked }))} />
-            </label>
-
-            <button type="submit">Save operator changes</button>
-          </form>
-
-          <form className="action-card compact-form" onSubmit={handleAddOperator}>
-            <div className="action-header">
-              <div>
-                <p className="panel-kicker">People</p>
-                <h3>New operator</h3>
-              </div>
-            </div>
-
-            <label>
-              Name
-              <input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} placeholder="e.g. Jane Doe" />
-            </label>
-
-            <label>
-              Role
-              <input value={operatorRole} onChange={(event) => setOperatorRole(event.target.value)} placeholder="e.g. Surveyor" />
-            </label>
-
-            <label className="toggle-row">
-              <span>Active</span>
-              <input type="checkbox" checked={operatorActive} onChange={(event) => setOperatorActive(event.target.checked)} />
-            </label>
-
-            <button type="submit">Add operator</button>
-          </form>
+          <button type="button" className="management-button" onClick={() => setOperatorManagerOpen(true)}>
+            Manage operators
+          </button>
 
           <section className="timeline-card">
             <div className="action-header">
@@ -759,6 +724,84 @@ function App() {
           </section>
         </section>
       </main>
+
+      {operatorManagerOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setOperatorManagerOpen(false)}>
+        <section className="modal-window" role="dialog" aria-modal="true" aria-labelledby="operator-manager-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="action-header">
+            <div>
+              <p className="panel-kicker">People</p>
+              <h2 id="operator-manager-title">Operator management</h2>
+            </div>
+            <button type="button" className="close-button" onClick={() => setOperatorManagerOpen(false)}>Close</button>
+          </div>
+
+          <div className="operator-list">
+            {state.operators.map((operator) => (
+              <div className="operator-row" key={operator.id}>
+                <div>
+                  <strong>{operator.name}</strong>
+                  <span>{operator.role} · {operator.active ? 'Active' : 'Inactive'}</span>
+                </div>
+                <button type="button" className="close-button" onClick={() => {
+                  setSelectedOperatorId(operator.id);
+                  setOperatorDraft({ name: operator.name, role: operator.role, active: operator.active });
+                }}>Edit</button>
+                <button type="button" className="danger-button" onClick={() => handleDeleteOperator(operator.id)}>Delete</button>
+              </div>
+            ))}
+          </div>
+
+          <form className="action-card compact-form" onSubmit={handleAddOperator}>
+            <h3>Add operator</h3>
+            <label>
+              Name
+              <input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} placeholder="e.g. Jane Doe" />
+            </label>
+            <label>
+              Role
+              <input value={operatorRole} onChange={(event) => setOperatorRole(event.target.value)} placeholder="e.g. Surveyor" />
+            </label>
+            <label className="toggle-row">
+              <span>Active</span>
+              <input type="checkbox" checked={operatorActive} onChange={(event) => setOperatorActive(event.target.checked)} />
+            </label>
+            <button type="submit">Add operator</button>
+          </form>
+
+          {state.operators.some((operator) => operator.id === selectedOperatorId) && <form className="action-card compact-form" onSubmit={handleUpdateSelectedOperator}>
+            <h3>Edit selected operator</h3>
+            <label>
+              Name
+              <input value={operatorDraft.name} onChange={(event) => setOperatorDraft((current) => ({ ...current, name: event.target.value }))} />
+            </label>
+            <label>
+              Role
+              <input value={operatorDraft.role} onChange={(event) => setOperatorDraft((current) => ({ ...current, role: event.target.value }))} />
+            </label>
+            <label className="toggle-row">
+              <span>Active</span>
+              <input type="checkbox" checked={operatorDraft.active} onChange={(event) => setOperatorDraft((current) => ({ ...current, active: event.target.checked }))} />
+            </label>
+            <button type="submit">Save operator changes</button>
+          </form>}
+        </section>
+      </div>}
+
+      {adminManagerOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setAdminManagerOpen(false)}>
+        <section className="modal-window small-modal" role="dialog" aria-modal="true" aria-labelledby="admin-manager-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="action-header">
+            <div>
+              <p className="panel-kicker">Permissions</p>
+              <h2 id="admin-manager-title">Admin controls</h2>
+            </div>
+            <button type="button" className="close-button" onClick={() => setAdminManagerOpen(false)}>Close</button>
+          </div>
+          <p className="modal-copy">Element list changes are restricted to the admin session. This local permission switch is a prototype until Trimble Connect identity and server-side permissions are connected.</p>
+          <form onSubmit={handleAdminModeChange}>
+            <button type="submit">{isAdmin ? 'Disable admin mode' : 'Enable admin mode'}</button>
+          </form>
+        </section>
+      </div>}
     </div>
   );
 }

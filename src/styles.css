@@ -189,6 +189,17 @@ button {
   margin-top: 18px;
 }
 
+.management-button {
+  width: 100%;
+  margin-top: 14px;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+  border-radius: 14px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--blue);
+  font-weight: 700;
+}
+
 .element-card {
   text-align: left;
   border-radius: 20px;
@@ -267,6 +278,7 @@ label {
   font-weight: 600;
 }
 
+input,
 select,
 textarea {
   width: 100%;
@@ -275,6 +287,12 @@ textarea {
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
   padding: 12px 14px;
+}
+
+input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--blue);
 }
 
 textarea {
@@ -358,6 +376,77 @@ button[type='submit']:disabled {
 .tone-closed {
   background: rgba(15, 118, 110, 0.12);
   color: var(--closed);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.modal-window {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--panel-strong);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.small-modal {
+  width: min(480px, 100%);
+}
+
+.close-button,
+.danger-button {
+  border: 1px solid rgba(16, 24, 40, 0.14);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: #ffffff;
+  color: var(--slate);
+  font-weight: 700;
+}
+
+.danger-button {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.2);
+  background: rgba(255, 245, 243, 0.9);
+}
+
+.operator-list {
+  display: grid;
+  gap: 8px;
+}
+
+.operator-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.operator-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.operator-row span,
+.modal-copy {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 @media (max-width: 1120px) {
