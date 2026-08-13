@@ -22,6 +22,7 @@ interface AppState {
 
 const defaultWorkspaceBridge: WorkspaceBridge = {
   mode: 'local',
+  host: 'project',
   projectName: 'Local development mode',
   language: 'Unknown',
   accessTokenState: 'Unavailable until embedded in Trimble Connect',
@@ -470,6 +471,66 @@ function App() {
   const currentOperator = state.operators.find((operator) => operator.id === selectedElement.assignedOperatorId);
   const currentStatusMeta = getStatusMeta(selectedElement.currentStatus);
   const nextStatuses = getNextStatuses(selectedElement.currentStatus);
+
+  if (workspace.host === '3dviewer') {
+    return (
+      <div className="viewer-panel">
+        <div className="viewer-panel-header">
+          <div>
+            <p className="eyebrow">Survey workflow</p>
+            <h1>Selected model element</h1>
+          </div>
+          <span className="connection-pill connected">3D Viewer</span>
+        </div>
+
+        <button type="button" className="model-picker-button" onClick={handleUseSelectedModelElement} disabled={modelSelectionState === 'loading'}>
+          {modelSelectionState === 'loading' ? 'Reading selection...' : 'Read selected element'}
+        </button>
+        <p className={`field-help ${modelSelectionState === 'error' ? 'field-error' : ''}`}>
+          {modelSelectionState === 'error' ? modelSelectionError : 'Select an IFC object in the viewer and read its attributes.'}
+        </p>
+
+        {modelAttributes.length > 0 && <div className="model-attribute-picker">
+          <p className="panel-kicker">Choose IFC attributes</p>
+          <label>
+            Element name from
+            <select value={modelNameAttribute} onChange={(event) => handleModelAttributeChange('name', event.target.value)}>
+              <option value="">Keep current name</option>
+              {modelAttributes.map((attribute, index) => <option key={`${attribute.name}-${index}`} value={attribute.name}>{attribute.name}: {attribute.value}</option>)}
+            </select>
+          </label>
+          <label>
+            Element GUID from
+            <select value={modelGuidAttribute} onChange={(event) => handleModelAttributeChange('guid', event.target.value)}>
+              <option value="">Keep current GUID</option>
+              {modelAttributes.map((attribute, index) => <option key={`${attribute.name}-${index}`} value={attribute.name}>{attribute.name}: {attribute.value}</option>)}
+            </select>
+          </label>
+        </div>}
+
+        <form className="viewer-element-card" onSubmit={handleAddElement}>
+          <p className="panel-kicker">Workflow record</p>
+          <h2>{newElementName || selectedElement.name}</h2>
+          <p className="viewer-guid">{newElementGuid || selectedElement.guid}</p>
+          <label>
+            Initial status
+            <select value={newElementStatus} onChange={(event) => setNewElementStatus(event.target.value as StatusKey)}>
+              {statusCatalog.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Assigned operator
+            <select value={newElementOperatorId} onChange={(event) => setNewElementOperatorId(event.target.value)}>
+              {activeOperators.map((operator) => <option key={operator.id} value={operator.id}>{operator.name} - {operator.role}</option>)}
+            </select>
+          </label>
+          <button type="submit" disabled={!newElementName.trim()}>
+            Add to workflow
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">

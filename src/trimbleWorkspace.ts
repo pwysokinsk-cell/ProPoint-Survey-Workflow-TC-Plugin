@@ -1,5 +1,6 @@
 export interface WorkspaceBridge {
   mode: 'connected' | 'local';
+  host: 'project' | '3dviewer';
   projectName: string;
   language: string;
   accessTokenState: string;
@@ -46,6 +47,7 @@ const extensionMenu: ExtensionMenuItem = {
 function createLocalBridge(): WorkspaceBridge {
   return {
     mode: 'local',
+    host: 'project',
     projectName: 'Local development mode',
     language: 'Unknown',
     accessTokenState: 'Unavailable until embedded in Trimble Connect',
@@ -299,6 +301,7 @@ export async function connectTrimbleWorkspace(onCommand: (command: string) => vo
       api?.user?.getUserSettings?.(),
       api?.extension?.getPermission?.('accesstoken'),
     ]);
+    const hostResult = await Promise.resolve(api?.extension?.getHost?.()).catch(() => undefined);
 
     const projectName =
       projectResult.status === 'fulfilled' ? getTextValue(projectResult.value?.name) ?? getTextValue(projectResult.value?.title) ?? 'Trimble project' : 'Trimble project';
@@ -308,6 +311,7 @@ export async function connectTrimbleWorkspace(onCommand: (command: string) => vo
 
     return {
       mode: 'connected',
+      host: hostResult?.name === '3dviewer' ? '3dviewer' : 'project',
       projectName,
       language,
       accessTokenState,
