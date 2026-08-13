@@ -201,7 +201,6 @@ button {
 }
 
 .element-card {
-  text-align: left;
   border-radius: 20px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.72);
@@ -212,13 +211,32 @@ button {
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
+.element-card-select {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .element-card:hover,
-.element-card:focus-visible,
 .element-card.active {
   transform: translateY(-1px);
   border-color: rgba(29, 78, 216, 0.2);
   background: rgba(255, 255, 255, 0.96);
   outline: none;
+}
+
+.element-card-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+
+.element-delete-button {
+  justify-self: end;
+  padding: 7px 10px;
+  font-size: 0.82rem;
 }
 
 .element-card-top,

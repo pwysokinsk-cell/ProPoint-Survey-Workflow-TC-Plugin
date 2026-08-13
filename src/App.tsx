@@ -448,7 +448,7 @@ function App() {
           </div>
 
           <button type="button" className="management-button" onClick={() => setAdminManagerOpen(true)}>
-            {isAdmin ? 'Admin mode enabled' : 'Open admin controls'}
+            {isAdmin ? 'Admin mode enabled: manage elements' : 'Admin controls: unlock element management'}
           </button>
 
           {isAdmin && <form className="action-card compact-form" onSubmit={handleAddElement}>
@@ -501,22 +501,22 @@ function App() {
               const operator = state.operators.find((entry) => entry.id === element.assignedOperatorId);
 
               return (
-                <button
-                  key={element.id}
-                  type="button"
-                  className={`element-card ${isActive ? 'active' : ''}`}
-                  onClick={() => setSelectedElementId(element.id)}
-                >
-                  <div className="element-card-top">
-                    <strong>{element.name}</strong>
-                    <span className={`status-badge tone-${statusMeta.tone}`}>{statusMeta.label}</span>
-                  </div>
-                  <span className="element-guid">{element.guid}</span>
-                  <div className="element-meta">
-                    <span>{operator ? operator.name : 'Unassigned'}</span>
-                    <span>{element.history.length} history entries</span>
-                  </div>
-                </button>
+                <div key={element.id} className={`element-card ${isActive ? 'active' : ''}`}>
+                  <button type="button" className="element-card-select" onClick={() => setSelectedElementId(element.id)}>
+                    <div className="element-card-top">
+                      <strong>{element.name}</strong>
+                      <span className={`status-badge tone-${statusMeta.tone}`}>{statusMeta.label}</span>
+                    </div>
+                    <span className="element-guid">{element.guid}</span>
+                    <div className="element-meta">
+                      <span>{operator ? operator.name : 'Unassigned'}</span>
+                      <span>{element.history.length} history entries</span>
+                    </div>
+                  </button>
+                  {isAdmin && <button type="button" className="danger-button element-delete-button" onClick={handleDeleteElement}>
+                    Delete element
+                  </button>}
+                </div>
               );
             })}
           </div>
