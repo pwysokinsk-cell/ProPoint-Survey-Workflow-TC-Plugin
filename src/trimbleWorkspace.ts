@@ -143,9 +143,9 @@ export async function getSelectedModelElement(api: any): Promise<ModelElementRef
     modelObject = Array.isArray(properties)
       ? properties[0]
       : properties?.modelObjects?.[0]
-        ?? properties?.objects?.[0]
-        ?? properties?.modelObjectProperties?.[0]
-        ?? properties;
+      ?? properties?.objects?.[0]
+      ?? properties?.modelObjectProperties?.[0]
+      ?? properties;
   }
 
   const guid = getModelValue(modelObject, ['guid', 'objectGuid', 'uniqueId', 'id', 'objectRuntimeId', 'modelObjectId'])
