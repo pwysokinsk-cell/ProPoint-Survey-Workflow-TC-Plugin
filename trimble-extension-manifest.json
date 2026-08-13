@@ -1,6 +1,6 @@
 {
     "title": "ProPoint Survey Workflow TC Plugin",
-    "icon": "https://pwysokinsk-cell.github.io/ProPoint-Survey-Workflow-TC-Plugin/icon.png",
+    "icon": "https://github.githubassets.com/favicons/favicon.png",
     "url": "https://pwysokinsk-cell.github.io/ProPoint-Survey-Workflow-TC-Plugin/",
     "description": "Trimble Connect surveying workflow tracker for status updates, operator assignments, and history notes.",
     "configCommand": "PROPOINT_SURVEY_WORKFLOW_CONFIG",
